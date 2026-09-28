@@ -1,5 +1,4 @@
-""" Ready-Made Tool Using Agent Workflow """
-
+"""Ready-made agent + tool loop workflow."""
 
 from __future__ import annotations
 
@@ -13,15 +12,40 @@ from core.tool import Tool, ToolResult
 
 
 class ToolCall(BaseModel):
-    name: str
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    """A single tool invocation requested by the agent."""
+
+    name: str = Field(description="Exact name of the tool to call.")
+    arguments: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Arguments matching the tool's input schema.",
+    )
 
 
 class AgentDecision(BaseModel):
-    decision: Literal["response", "tool_call"] | None = None
-    response: str | None = None
-    tool_call: ToolCall | None = None
-    error: str | None = None
+    """Structured decision the agent must return on every turn.
+
+    Exactly one of these shapes is valid:
+    - decision='response' + non-empty response text, tool_call=null, error=null
+    - decision='tool_call' + tool_call object, response=null, error=null
+    - error set (framework use only) — other fields ignored
+    """
+
+    decision: Literal["response", "tool_call"] | None = Field(
+        default=None,
+        description="Must be 'response' or 'tool_call' when error is null.",
+    )
+    response: str | None = Field(
+        default=None,
+        description="User-facing answer when decision is 'response'.",
+    )
+    tool_call: ToolCall | None = Field(
+        default=None,
+        description="Tool to invoke when decision is 'tool_call'.",
+    )
+    error: str | None = Field(
+        default=None,
+        description="Framework error message; leave null for normal turns.",
+    )
 
     @model_validator(mode="after")
     def validate_decision(self) -> "AgentDecision":
@@ -29,16 +53,14 @@ class AgentDecision(BaseModel):
             return self
 
         if self.decision == "response":
-            if not self.response or not self.response.strip():
+            if not self.response or not str(self.response).strip():
                 raise ValueError(
                     "response decision requires a non-empty response."
                 )
-
             if self.tool_call is not None:
                 raise ValueError(
                     "response decision must not contain a tool call."
                 )
-
             return self
 
         if self.decision == "tool_call":
@@ -46,12 +68,10 @@ class AgentDecision(BaseModel):
                 raise ValueError(
                     "tool_call decision requires a tool call."
                 )
-
             if self.response is not None:
                 raise ValueError(
                     "tool_call decision must not contain a response."
                 )
-
             return self
 
         raise ValueError(
@@ -99,8 +119,7 @@ class AgentWithLoop:
         for _ in range(self.max_iterations):
             state = self.runtime_state.model_dump(mode="json")
             state["available_tools"] = [
-                tool.definition()
-                for tool in self.tools.values()
+                tool.definition() for tool in self.tools.values()
             ]
 
             decision = self.agent.invoke(state)
@@ -121,11 +140,7 @@ class AgentWithLoop:
                         "Agent returned a response decision without a response."
                     )
 
-                self.runtime_state.add_message(
-                    "assistant",
-                    response,
-                )
-
+                self.runtime_state.add_message("assistant", response)
                 return response
 
             tool_call = decision.tool_call

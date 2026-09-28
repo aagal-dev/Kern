@@ -1,5 +1,5 @@
-from core.base_agent import Agent
-#from core.model import ModelClient, ModelResponse
+from core.base_agent import Agent, BaseAgent
+from core.model import ModelClient, ModelResponse
 from core.runtime_state import (
     ConversationMessage,
     RuntimeState,
@@ -10,6 +10,9 @@ from core.tool import Tool, ToolResult
 
 __all__ = [
     "Agent",
+    "BaseAgent",
+    "ModelClient",
+    "ModelResponse",
     "ConversationMessage",
     "RuntimeState",
     "RuntimeStep",
