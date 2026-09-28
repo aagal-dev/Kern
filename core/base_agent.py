@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from integrations.ollama_client import OllamaClient
 
 
-class BaseAgent:
+class Agent:
     MAX_STATE_CHARS = 64_000
 
     def __init__(
