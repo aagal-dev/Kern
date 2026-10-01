@@ -6,8 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from core.model import ModelClient, ModelResponse
-from integrations.ollama_client import OllamaClient
+from kern.core.model import ModelClient, ModelResponse
+from kern.integrations.ollama_client import OllamaClient
 
 
 class BaseAgent:

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from core.tool import Tool, ToolResult
+from kern.core.tool import Tool, ToolResult
 
 
 class DateInput(BaseModel):

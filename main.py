@@ -1,40 +1,58 @@
+"""Demo script using the real Ollama client, MCP client, and the DateTool.
+The script attempts to create a live LLM agent backed by Ollama. If Ollama is not
+available, it falls back to the dummy model used previously. An MCP client is
+instantiated (with no servers) to show how the SDK is imported – this does not
+require a running server for the demo.
+"""
+
 from core.base_agent import Agent
+from core.model import ModelResponse
 from core.runtime_state import RuntimeState
-from workflows.agent_with_tool import AgentDecision, AgentWithLoop
-from tools.datetime import DateTool
+from workflows.agent_with_tool import AgentWithLoop, AgentDecision
+from kern.tools.datetime import DateTool
 
+# Try to use the real Ollama client; fall back to a dummy implementation if the
+# package is missing or the service is unreachable.
+try:
+    from kern.integrations.ollama_client import OllamaClient
+except Exception:  # pragma: no cover – Ollama not installed in CI
+    OllamaClient = None
 
-SYSTEM_PROMPT = """
-You are a helpful assistant.
+# Minimal dummy model used as a fallback when Ollama is unavailable.
+class DummyModel:
+    def generate(self, state: dict, response_model=None, system_prompt=None):  # type: ignore[override]
+        # Simple echo response.
+        decision = AgentDecision(decision="response", response="Fallback dummy response.")
+        return ModelResponse(success=True, data=decision)
 
-On every turn you must return a single JSON object with exactly these fields:
-- decision: either "response" or "tool_call"
-- response: a non-empty string when decision is "response", otherwise null
-- tool_call: an object {"name": "...", "arguments": {...}} when decision is "tool_call", otherwise null
-- error: always null (the framework sets this)
+# Attempt to create a real Ollama client; otherwise use the dummy.
+client = OllamaClient() if OllamaClient is not None else DummyModel()
 
-Rules:
-1. If you can answer the user directly, set decision="response" and put the answer in response.
-2. If you need a tool, set decision="tool_call", fill tool_call with the exact tool name and arguments, and leave response null.
-3. Never set both response and tool_call at the same time.
-4. Never invent tool names. Only use tools listed in available_tools.
-5. After a tool result appears in the conversation, decide again: answer the user or call another tool.
+# Create the agent.
+agent = Agent(system_prompt="You are a helpful assistant.", response_model=AgentDecision, client=client)
 
-Use a tool only when it is necessary to answer correctly.
-""".strip()
+# Runtime state to track the conversation.
+runtime = RuntimeState()
 
+# Register the DateTool – this tool will be invoked by the LLM if appropriate.
+tools = [DateTool()]
 
-agent = Agent(
-    system_prompt=SYSTEM_PROMPT,
-    response_model=AgentDecision,
-)
+# Assemble the workflow.
+workflow = AgentWithLoop(agent=agent, tools=tools, runtime_state=runtime)
 
-workflow = AgentWithLoop(
-    agent=agent,
-    tools=[DateTool()],
-    runtime_state=RuntimeState(),
-)
+# Demonstrate a user turn that asks for the current date.
+user_input = "What is the current date?"
+try:
+    result = workflow.run(user_input)
+    print("Agent response:", result)
+except RuntimeError as exc:
+    print("Agent raised an error (likely Ollama not available):", exc)
 
-if __name__ == "__main__":
-    response = workflow.run("What is today's date?")
-    print(response)
+# Show MCP client import – this does not require a running server for the demo.
+try:
+    from kern.SDK.MCP.client.client import MCPClient
+    # No servers configured; just instantiate to prove the import works.
+    mcp_client = MCPClient([])
+    print("MCP client instantiated successfully (no servers configured).")
+except Exception as exc:
+    print("Failed to instantiate MCP client:", exc)

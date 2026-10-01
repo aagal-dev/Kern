@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from core.model import ModelResponse
+from kern.core.model import ModelResponse
 
 T = TypeVar("T", bound=BaseModel)
 

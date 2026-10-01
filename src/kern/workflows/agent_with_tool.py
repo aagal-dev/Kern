@@ -6,9 +6,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from core.base_agent import Agent
-from core.runtime_state import RuntimeState, StepStatus
-from core.tool import Tool, ToolResult
+from kern.core.base_agent import Agent
+from kern.core.runtime_state import RuntimeState, StepStatus
+from kern.core.tool import Tool, ToolResult
 
 
 class ToolCall(BaseModel):
